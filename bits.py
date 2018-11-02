@@ -48,6 +48,14 @@ class bits:
 		if isinstance(other, bits):
 			return bits(other._val + self._val)
 		return bits(bitarray(other) + self._val)
+	def __and__(self, other):
+		if isinstance(other, bits):
+			return bits(self._val & other._val)
+		return bits(self._val & other)
+	def __rand__(self, other):
+		if isinstance(other, bits):
+			return bits(other._val & self._val)
+		return bits(other & self._val)
 	def __or__(self, other):
 		if isinstance(other, bits):
 			return bits(self._val | other._val)
@@ -66,6 +74,9 @@ class bits:
 		return bits(other ^ self._val)
 	def __invert__(self):
 		return bits(~self._val)
+	
+	def __lshift__(self, count):
+		pass
 	
 	def __bytes__(self):
 		return self._val.tobytes()
