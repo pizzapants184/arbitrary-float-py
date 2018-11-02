@@ -30,11 +30,25 @@ class ArbitraryFloatType(type):
 		pass
 	@staticmethod
 	def least_precision(val):
+		"Return a type that can represent val exactly\nAlways ArbitraryFloatType(11, 52) for floats\nFor ints, returns a type that can represent every integer in [0,val]"
 		if isinstance(val, float):
 			return ArbitraryFloatType(11, 52) # IEEE 754 Double
 		elif isinstance(val, int):
-			import math
-			return ArbitraryFloatType(1+(val.bit_length()-1).bit_length()), val.bit_length()-1)
+			if abs(val) <= 1:
+				return ArbitraryFloatType(1, 1)
+			return ArbitraryFloatType(1+(val.bit_length()-1).bit_length(), val.bit_length()-1)
+		elif isinstance(val, ArbitraryFloatBase):
+			return type(val)
+		else:
+			raise TypeError(val)
+	@staticmethod
+	def best_precision(a, b):
+		"Return a type that can represent both a and b exactly"
+		if not isinstance(a, (ArbitraryFloatBase, ArbitraryFloatType)):
+			a = ArbitraryFloatType.least_precision(a)
+		if not isinstance(b, (ArbitraryFloatBase, ArbitraryFloatType)):
+			b = ArbitraryFloatType.least_precision(b)
+		return ArbitraryFloatType(max(a.exp_len, b.exp_len), max(a.mant_len, b.mant_len))
 	@property
 	def bias(self):
 		"The (positive) exponent bias\nThe real exponent is (exp - bias)"
@@ -70,7 +84,6 @@ class ArbitraryFloatType(type):
 		else:
 			return 2**(self.mant_len+1)
 		
-
 class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	def __getattr__(self, attr):
 		return type(self).__getattribute__(type(self), attr)
@@ -237,11 +250,16 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			else:
 				raise TypeError(args[0])
 		elif 2 <= len(args) <= 3:
+			try:
+				self.__init_helper__(*args)
+				return
+			except TypeError: # exp is bits or error
+				pass 
 			if len(args) == 3 and not isinstance(args[0], bool):
 				raise TypeError("sign must be bool object in 2/3-arg %s.__init__" % type(self).__name__)
 			if not isinstance(args[-1], bits):
 				raise TypeError("mantissa must be bits object in 2/3-arg %s.__init__" % type(self).__name__)
-			if not isinstance(args[-2], (bits, int)):
+			if not isinstance(args[-2], bits):
 				raise TypeError("exp must be int or bits object in 2/3-arg %s.__init__" % type(self).__name__)
 			self.sign = bool(args[0]) if len(args) == 3 else False # positive if no sign given
 			self.exp_bits = bits(args[-2])
@@ -323,30 +341,6 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			mant = mant.lstrip()
 			exp = baseexp + int(groups[7] or 0)
 			return cls(sign, exp, mant)
-			
-			
-			
-			if len(mant) <= 1+cls.mant_len: # no rounding
-				mant = mant[1:].crop(cls.mant_len)
-			else: # maybe rounding
-				mant_remaining = mant[cls.mant_len+1:].extend(1)
-				mant = mant[1:].crop(cls.mant_len)
-				if all(mant) and mant_remaining[0]: # increase exp
-					exp += 1
-					mant = bits(cls.mant_len)
-				elif mant_remaining[0] and (mant[-1] or # half-even up
-											any(mant_remaining[1:])): # other up
-					mant = mant.inc()
-				#else: # no rounding
-			if exp > cls.max_normal_exp:
-				return cls(sign, ~bits(cls.exp_len), bits(cls.mant_len))
-			if exp < cls.min_subnormal_exp-1: # round to zero without possible rounding
-				return cls(sign, bits(cls.exp_len), bits(cls.mant_len))
-			if exp == cls.min_subnormal_exp-1: # could round to minimum subnormal or zero
-				raise TODO(locals())
-			if exp < cls.min_normal_exp: # subnormal with possible rounding
-				raise TODO(locals())
-			return cls(sign, bits.encode_int(exp + cls.bias, cls.exp_len), mant)
 		else: # if groups[8] is not None: # inf or nan
 			if groups[10] == 'inf':
 				if groups[9] == '-':
@@ -401,6 +395,31 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			return type(self)(True, bits(self.exp_len), bits.encode_int(1, self.mant_len))
 	def __neg__(self):
 		return type(self)(not self.sign, self.exp_bits[:], self.mant_bits[:])
+	
+	def __mul__(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		if self.isnan or other.isnan or \
+			(self.isinf and other.iszero) or \
+			(self.iszero and other.isinf):
+				return self.nan
+		elif self.iszero or other.iszero:
+			return -self.zero if (self.sign ^ other.sign) else self.zero
+		elif self.isinf or other.isinf:
+			return -self.inf if (self.sign ^ other.sign) else self.inf
+		else: # both are finite
+			s_sign, s_exp, s_mant = self.normalized
+			o_sign, o_exp, o_mant = other.normalized
+			sign = s_sign ^ o_sign
+			exp = s_exp + o_exp
+			mant = s_mant.multiply_unsigned(o_mant)
+			if mant[0]:
+				exp += 1
+			else:
+				mant = mant[1:]
+			return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+			
+	
 	def _decimal_str(self):
 		pass
 	def __repr__(self):
@@ -416,6 +435,14 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			else:
 				return type(self).__name__ + "(\x1b[31m%s\x1b[32m%s\x1b[33m%s\x1b[0m) # error \n\t%s" % (bits([self.sign]), self.exp_bits, self.mant_bits, '\n\t'.join(traceback.format_exc().split('\n')))
 
+
+def multiplication_helper(mant1: bits, mant2: bits) -> (bits, int):
+	"Takes in two normalized mantissas and returnsa normalized mantissa and an exp adjustment (0 if not needed, 1 if carried)"
+	out = mant1.multiply_unsigned(mant2)
+	if not out[0]:
+		return out[1:], 0
+	else:
+		return out, 1
 Quarter = ArbitraryFloatType(4, 3)
 Half = ArbitraryFloatType(5, 10)
 Single = ArbitraryFloatType(8, 23)

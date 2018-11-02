@@ -1,5 +1,6 @@
 from bitarray import bitarray
 import struct
+from itertools import zip_longest
 
 class bits:
 	"Immutable(ish) layer on the bitarray module"
@@ -161,4 +162,22 @@ class bits:
 		if not isinstance(other, bits):
 			raise TypeError(other)
 		return bits.encode_int(self.decode_int()*other.decode_int(), len(self)+len(other))
+	
+	def add_unsigned_rjust(self, other, carry=0):
+		"""
+		Add self and other, returning a bits object of length 1+max(len(self),len(other))
+		Optional carry for the LSB
+		This function right justifies its arguments if they are of different lengths, like so:
+	carry     11111
+		 00101011101
+		+       1111
+		------------
+		000101101100
+		"""
+		out_rev = bits()
+		for a,b in zip_longest(self[::-1], other[::-1], fillvalue=0):
+			sum = a + b + carry
+			out += [sum % 2]
+			carry = sum > 1
+		out += carry
 		
