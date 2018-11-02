@@ -168,16 +168,75 @@ class bits:
 		Add self and other, returning a bits object of length 1+max(len(self),len(other))
 		Optional carry for the LSB
 		This function right justifies its arguments if they are of different lengths, like so:
-	carry     11111
+		      11111 carry
 		 00101011101
-		+       1111
+		+_______1111
 		------------
 		000101101100
 		"""
+		return bits.encode_int(self.decode_int() + other.decode_int() + carry, 1+max(len(self),len(other)))
+	def _add_unsigned_rjust_old(self, other, carry=0):
+		"""
+		Add self and other, returning a bits object of length 1+max(len(self),len(other))
+		Optional carry for the LSB
+		This function right justifies its arguments if they are of different lengths, like so:
+		      11111 carry
+		 00101011101
+		+_______1111
+		------------
+		000101101100
+		"""
+		#TODO: this could be optimized for different lengths by only add/carrying for the first min(len(self),len(other)) bits, then just copying from the longer one
+		#TODO: ACTUALLY, we would need to at least keep carrying until carry is zero before just copying (i.e. 1111111111 + 1 needs carry all the way )
 		out_rev = bits()
 		for a,b in zip_longest(self[::-1], other[::-1], fillvalue=0):
 			sum = a + b + carry
-			out += [sum % 2]
+			out_rev += [sum % 2]
 			carry = sum > 1
-		out += carry
+		out_rev += [carry]
+		return out_rev[::-1]
+	
+	def add_unsigned_ljust(self, other):
+		"""
+		Add self and other, returning a bits object of length 1+max(len(self),len(other))
+		This function left justifies its arguments if they are of different lengths, like so:
+		111          carry
+		 00101011101
+		+1111_______
+		------------
+		100011011101
+		"""
+		if len(self) >= len(other):
+			return self[:len(other)].add_unsigned_rjust(other) + self[len(other):]
+		else:
+			return other[:len(self)].add_unsigned_rjust(self) + other[len(self):]
+	
+	def sub_unsigned_rjust(self, other):
+		"""
+		Subtract min(self, other) from max(self, other), returning a bits object of length max(len(self),len(other))
+		This function left justifies its arguments if they are of different lengths, like so:
+		 0 0 1 0 1 0 1 1 1 0 1
+		-_ _ _ _ _ _ _ 1 1 1 1
+		-----------------------
+		 0 0 1 0 1 0 0 1 1 1 0
+		"""
+		return bits.encode_int(abs(self.decode_int() - other.decode_int()), max(len(self),len(other)))
+	
+	def sub_unsigned_ljust(self, other):
+		"""
+		Subtract min(self, other) from max(self, other), returning a bits object of length max(len(self),len(other))
+		This function left justifies its arguments if they are of different lengths, like so:
+		 0 0 1 0 1 0 1 1 1 0 1
+		-1 1 1 1 _ _ _ _ _ _ _
+		----------------------- a < b so switch
+		 1 1 1 1 _ _ _ _ _ _ _
+		-0 0 1 0 1 0 1 1 1 0 1
+		-----------------------
+		 1 1 0 0 0 1 0 0 0 1 1
+		"""
+		if len(self) >= len(other):
+			return bits.encode_int(abs(self.decode_int() - other.extend(len(self)).decode_int()), len(self))
+		else:
+			return bits.encode_int(abs(self.extend(len(other)).decode_int() - other.decode_int()), len(other))
+			
 		
