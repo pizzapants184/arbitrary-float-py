@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<project name="" company="" manager="" phase="" project-start="20181031T000000Z" mrproject-version="2" calendar="1">
+  <properties/>
+  <phases/>
+  <calendars>
+    <day-types>
+      <day-type id="0" name="Working" description="A default working day"/>
+      <day-type id="1" name="Nonworking" description="A default non working day"/>
+      <day-type id="2" name="Use base" description="Use day from base calendar"/>
+    </day-types>
+    <calendar id="1" name="Default">
+      <default-week mon="0" tue="0" wed="0" thu="0" fri="0" sat="1" sun="1"/>
+      <overridden-day-types>
+        <overridden-day-type id="0">
+          <interval start="0800" end="1200"/>
+          <interval start="1300" end="1700"/>
+        </overridden-day-type>
+      </overridden-day-types>
+      <days/>
+    </calendar>
+  </calendars>
+  <tasks>
+    <task id="1" name="Arbitrary Float Project" note="" work="1094400" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+      <task id="2" name="Initialize" note="" work="172800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="3" name="From float" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="4" name="From int" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="5" name="From bits/bytes" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="6" name="From another Arbitrary Float" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="7" name="From hex" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="8" name="From string" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="9" name="Conversion" note="" work="172800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="10" name="To float" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="11" name="To int" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="12" name="To bits" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="13" name="To bytes" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="14" name="To hex" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="15" name="To string" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="16" name="Boolean properties of Numbers" note="" work="230400" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="17" name="5 Types of floats " note="" work="144000" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="18" name="isinf" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="19" name="isnan" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="20" name="issubnormal" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="21" name="isnormal" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="22" name="iszero" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+        <task id="23" name="Sign" note="" work="86400" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="24" name="ispositive" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="25" name="isnegative" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+          <task id="26" name="issignless (zero and NaN)" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="100" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+      </task>
+      <task id="27" name="Properties of types (classes)" note="" work="172800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="28" name="inf" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="29" name="nan" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="30" name="zero" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="31" name="maxint (highest int X such that X and X-1 can be exactly stored)" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="32" name="minnormal" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="33" name="maxsubnormal" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="34" name="Comparison" note="" work="86400" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="35" name="Between AFs" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="36" name="Between AFs and floats" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="37" name="Between AFs and ints" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="38" name="Basic Functions" note="" work="57600" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="39" name="Incrementation" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="40" name="By more than 1" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+        <task id="41" name="Decrementation" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+          <task id="42" name="By more than 1" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        </task>
+      </task>
+      <task id="43" name="Basic Arithmetic 1" note="" work="115200" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="44" name="Addition" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="45" name="Subtraction" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="46" name="Negation" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="47" name="" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="48" name="Basic Arithmetic 2" note="" work="57600" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work">
+        <task id="49" name="Multiplication" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+        <task id="50" name="Division" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+      </task>
+      <task id="51" name="" note="" work="28800" start="20181031T000000Z" end="20181031T170000Z" work-start="20181031T080000Z" percent-complete="0" priority="0" type="normal" scheduling="fixed-work"/>
+    </task>
+  </tasks>
+  <resource-groups/>
+  <resources/>
+  <allocations/>
+</project>
