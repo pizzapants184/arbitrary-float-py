@@ -418,6 +418,41 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			else:
 				mant = mant[1:]
 			return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+	
+	def __add__(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		if self.isnan or other.isnan or \
+			(self.isinf and other.isinf and (self.sign ^ other.sign)):
+			return self.nan
+		elif self.isinf:
+			return self
+		elif other.isinf:
+			return other
+		elif self.iszero:
+			return other
+		elif other.iszero:
+			return self
+		else: # both finite
+			if self.sign and not other.sign:
+				return other - self
+			elif other.sign and not self.sign:
+				return self - other
+			else: # same sign
+				sign, s_exp, s_mant = self.normalized
+				_   , o_exp, o_mant = other.normalized
+				if s_exp >= o_exp:
+					exp = s_exp
+					mant = s_mant.add_unsigned_ljust(bits(s_exp - o_exp) + o_mant)
+				else:
+					exp = o_exp
+					mant = o_mant.add_unsigned_ljust(bits(o_exp - s_exp) + s_mant)
+				
+				if mant[0]:
+					exp += 1
+				else:
+					mant = mant[1:]
+				return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
 			
 	
 	def _decimal_str(self):
