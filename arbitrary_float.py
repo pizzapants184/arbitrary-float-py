@@ -402,11 +402,17 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		if self.isnan or other.isnan or \
 			(self.isinf and other.iszero) or \
 			(self.iszero and other.isinf):
-				return self.nan
+				return ArbitraryFloatType.best_precision(self, other).nan
 		elif self.iszero or other.iszero:
-			return -self.zero if (self.sign ^ other.sign) else self.zero
+			if self.sign ^ other.sign:
+				return -ArbitraryFloatType.best_precision(self, other).zero
+			else:
+				return +ArbitraryFloatType.best_precision(self, other).zero
 		elif self.isinf or other.isinf:
-			return -self.inf if (self.sign ^ other.sign) else self.inf
+			if self.sign ^ other.sign:
+				return -ArbitraryFloatType.best_precision(self, other).inf
+			else:
+				return +ArbitraryFloatType.best_precision(self, other).inf
 		else: # both are finite
 			s_sign, s_exp, s_mant = self.normalized
 			o_sign, o_exp, o_mant = other.normalized
@@ -424,20 +430,18 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			other = ArbitraryFloatType.least_precision(other)(other)
 		if self.isnan or other.isnan or \
 			(self.isinf and other.isinf and (self.sign ^ other.sign)):
-			return self.nan
+			return ArbitraryFloatType.best_precision(self, other).nan
 		elif self.isinf:
-			return self
+			return ArbitraryFloatType.best_precision(self, other)(self)
 		elif other.isinf:
-			return other
+			return ArbitraryFloatType.best_precision(self, other)(other)
 		elif self.iszero:
-			return other
+			return ArbitraryFloatType.best_precision(self, other)(other)
 		elif other.iszero:
-			return self
+			return ArbitraryFloatType.best_precision(self, other)(self)
 		else: # both finite
-			if self.sign and not other.sign:
-				return other - self
-			elif other.sign and not self.sign:
-				return self - other
+			if self.sign ^ other.sign:
+				return self - -other
 			else: # same sign
 				sign, s_exp, s_mant = self.normalized
 				_   , o_exp, o_mant = other.normalized
@@ -459,19 +463,17 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			other = ArbitraryFloatType.least_precision(other)(other)
 		if self.isnan or other.isnan or \
 			(self.isinf and other.isinf and not (self.sign ^ other.sign)):
-			return self.nan
+			return ArbitraryFloatType.best_precision(self, other).nan
 		elif self.isinf:
-			return self
+			return ArbitraryFloatType.best_precision(self, other)(self)
 		elif other.isinf:
-			return -other
+			return ArbitraryFloatType.best_precision(self, other)(-other)
 		elif self.iszero:
-			return -other
+			return ArbitraryFloatType.best_precision(self, other)(-other)
 		elif other.iszero:
-			return self
+			return ArbitraryFloatType.best_precision(self, other)(self)
 		else: # both finite
-			if self.sign and not other.sign:
-				return -(-self + other)
-			elif other.sign and not self.sign:
+			if self.sign ^ other.sign: # -5 - +6 == -5 + -6), +5 - -6 == +5 + +6
 				return self + -other
 			else: # same sign
 				sign, s_exp, s_mant = self.normalized
@@ -492,15 +494,36 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 					exp = o_exp
 					mant = o_mant.sub_unsigned_ljust(s_mant)
 				else: # equal inputs, a-a == 0
-					return ArbitraryFloatType.best_precision(self, other)(0)
+					return ArbitraryFloatType.best_precision(self, other).zero
 					
 				if any(mant):
 					exp -= mant.find(1)
 					mant = mant.lstrip()
 					return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
 				else: # zero
-					return ArbitraryFloatType.best_precision(self, other)(0)
-				
+					return ArbitraryFloatType.best_precision(self, other).zero
+	
+	def __and__(self, other):
+		"""
+		Gives the positive result of binary ANDing the theoretical infinite mantissas of abs(self) and abs(other)
+		nan & x == nan
+		inf & x == nan
+		0 & x == 0
+		"""
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		if self.isnan or other.isnan or \
+			self.isinf or other.isinf:
+			return self.nan
+		elif self.isinf:
+			return self
+		elif other.isinf:
+			return -other
+		elif self.iszero:
+			return -other
+		elif other.iszero:
+			return self
+		else: # both finite
 		
 	
 	def _decimal_str(self):
