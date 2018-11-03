@@ -148,7 +148,28 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		elif len(mant) < 1 or not mant[0]:
 			raise ValueError("mant must be normalized with a leading 1, not %r" % mant)
 		
-		if exp > self.max_normal_exp: # round up to inf
+		if self.exp_len == 1: # special case: causes problems b/c all finite values are subnormal, some general assumptions dont hold 
+			if exp > 0: # round up to inf
+				self.exp_bits = ~bits(self.exp_len)
+				self.mant_bits = bits(self.mant_len)
+			else:
+				mant = bits(-exp) + mant
+				if len(mant) <= self.mant_len: # no rounding needed
+					self.exp_bits = bits(self.exp_len)
+					self.mant_bits = mant.extend(self.mant_len)
+				else: # could round
+					if all(mant[:self.mant_len+1]): # half-even round up to inf
+						self.exp_bits = ~bits(self.exp_len)
+						self.mant_bits = bits(self.mant_len)
+					elif mant[self.mant_len+1] and \
+						(mant[self.mant_len] or  # half-even up 
+						 any(mant[self.mant_len+2:])): # round up normally
+						self.exp_bits = bits(self.exp_len)
+						self.mant_bits = mant[:self.mant_len].inc()
+					else: # no rounding up
+						self.exp_bits = bits(self.exp_len)
+						self.mant_bits = mant[:self.mant_len].inc()
+		elif exp > self.max_normal_exp: # round up to inf
 			self.exp_bits = ~bits(self.exp_len)
 			self.mant_bits = bits(self.mant_len)
 		elif exp > self.min_normal_exp:
@@ -396,6 +417,8 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			return type(self)(True, bits(self.exp_len), bits.encode_int(1, self.mant_len))
 	def __neg__(self):
 		return type(self)(not self.sign, self.exp_bits[:], self.mant_bits[:])
+	def __pos__(self):
+		return self
 	
 	def __mul__(self, other):
 		if not isinstance(other, ArbitraryFloatBase):
@@ -523,16 +546,40 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			else:
 				return -ArbitraryFloatType.best_precision(self, other).inf
 		else:
+			def round_undecided(mant, length):
+				"""Return true if an additional 1 added to mant could cause a change when rounding to length+1 bits (+1 for the leading normalized bit)
+				Only used when len(mant) > length + 2"""
+				if not mant[length+1]: #the first bit after used, if not set, cannot round up
+					return False
+				if mant[length]: # half-even, will round up
+					return False
+				if any(mant[length+2:]): # round up
+					return False
+				return True # could still change
 			s_sign, s_exp, s_mant = self.normalized
 			o_sign, o_exp, o_mant = other.normalized
 			sign = s_sign ^ o_sign
 			exp = s_exp - o_exp
-			length = 1 + max(self.mant_len, other.mant_len)
+			length = 1+max(self.mant_len, other.mant_len)
 			mant = bits()
 			s_mant = s_mant.extend(length)
 			o_mant = o_mant.extend(length)
-			
-			raise TODO
+			s_mant = s_mant.decode_int()
+			o_mant = o_mant.decode_int()
+			while s_mant and (len(mant) <= length+1 or round_undecided(mant, length-1)):
+				if s_mant >= o_mant:
+					mant += [1]
+					s_mant -= o_mant
+				else:
+					mant += [0]
+				s_mant *= 2
+			exp -= mant.find(1)
+			mant = mant.lstrip()
+			return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+	def __rtruediv__(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		return other.__truediv__(self)
 	
 	def __and__(self, other):
 		"""

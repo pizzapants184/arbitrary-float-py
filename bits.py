@@ -21,7 +21,9 @@ class bits:
 			return bits(self._val[index])
 		return val
 	def __str__(self):
-		return str(self._val).replace("bitarray('","").replace("')","")
+		if self._val:
+			return str(self._val).replace("bitarray('","").replace("')","")
+		return ''
 		#return str(self._val).replace('array', 's')
 	def __repr__(self):
 		return repr(self._val).replace('array', 's')
