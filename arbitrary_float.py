@@ -637,6 +637,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		ret = self.__mul_helper__(other)
 		if ret is not None: # Special case happened
 			return ret
+		# Both finite
 		s_sign, s_exp, s_mant = self.normalized
 		o_sign, o_exp, o_mant = other.normalized
 		sign = s_sign ^ o_sign
@@ -647,10 +648,25 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		else:
 			mant = mant[1:]
 		return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
-	
-	def __add__(self, other):
+	def mul(self, other):
 		if not isinstance(other, ArbitraryFloatBase):
 			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__mul_helper__(other)
+		if ret is not None: # Special case happened
+			return ret
+		# Both finite
+		s_sign, s_exp, s_mant = self.normalized
+		o_sign, o_exp, o_mant = other.normalized
+		sign = s_sign ^ o_sign
+		exp = s_exp + o_exp
+		mant = s_mant.multiply_unsigned(o_mant)
+		if mant[0]:
+			exp += 1
+		else:
+			mant = mant[1:]
+		return ArbitraryFloatType.least_precision(exp, mant)(sign, exp, mant)
+		
+	def __add_helper__(self, other):
 		if self.isnan or other.isnan or \
 			(self.isinf and other.isinf and (self.sign ^ other.sign)):
 			return ArbitraryFloatType.best_precision(self, other).nan
@@ -663,27 +679,56 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		elif other.iszero:
 			return ArbitraryFloatType.best_precision(self, other)(self)
 		else: # both finite
-			if self.sign ^ other.sign:
-				return self - -other
-			else: # same sign
-				sign, s_exp, s_mant = self.normalized
-				_   , o_exp, o_mant = other.normalized
-				if s_exp >= o_exp:
-					exp = s_exp
-					mant = s_mant.add_unsigned_ljust(bits(s_exp - o_exp) + o_mant)
-				else:
-					exp = o_exp
-					mant = o_mant.add_unsigned_ljust(bits(o_exp - s_exp) + s_mant)
-				
-				if mant[0]:
-					exp += 1
-				else:
-					mant = mant[1:]
-				return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
-	
-	def __sub__(self, other):
+			return None
+	def __add__(self, other):
 		if not isinstance(other, ArbitraryFloatBase):
 			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__add_helper__(other)
+		if ret is not None: # Speical case happened
+			return ret
+		# Both finite
+		if self.sign ^ other.sign:
+			return self - -other
+		else: # same sign
+			sign, s_exp, s_mant = self.normalized
+			_   , o_exp, o_mant = other.normalized
+			if s_exp >= o_exp:
+				exp = s_exp
+				mant = s_mant.add_unsigned_ljust(bits(s_exp - o_exp) + o_mant)
+			else:
+				exp = o_exp
+				mant = o_mant.add_unsigned_ljust(bits(o_exp - s_exp) + s_mant)
+
+			if mant[0]:
+				exp += 1
+			else:
+				mant = mant[1:]
+			return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+	def add(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__add_helper__(other)
+		if ret is not None: # Speical case happened
+			return ret
+		# Both finite
+		if self.sign ^ other.sign:
+			return self.sub(-other)
+		else: # same sign
+			sign, s_exp, s_mant = self.normalized
+			_   , o_exp, o_mant = other.normalized
+			if s_exp >= o_exp:
+				exp = s_exp
+				mant = s_mant.add_unsigned_ljust(bits(s_exp - o_exp) + o_mant)
+			else:
+				exp = o_exp
+				mant = o_mant.add_unsigned_ljust(bits(o_exp - s_exp) + s_mant)
+
+			if mant[0]:
+				exp += 1
+			else:
+				mant = mant[1:]
+			return ArbitraryFloatType.least_precision(exp, mant)(sign, exp, mant)
+	def __sub_helper__(self, other):
 		if self.isnan or other.isnan or \
 			(self.isinf and other.isinf and not (self.sign ^ other.sign)):
 			return ArbitraryFloatType.best_precision(self, other).nan
@@ -696,35 +741,79 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		elif other.iszero:
 			return ArbitraryFloatType.best_precision(self, other)(self)
 		else: # both finite
-			if self.sign ^ other.sign: # -5 - +6 == -5 + -6), +5 - -6 == +5 + +6
-				return self + -other
-			else: # same sign
-				sign, s_exp, s_mant = self.normalized
-				_   , o_exp, o_mant = other.normalized
-				
-				if s_exp > o_exp:
-					exp = s_exp
-					mant = s_mant.sub_unsigned_ljust(bits(s_exp - o_exp) + o_mant)
-				elif s_exp < o_exp:
-					sign = not sign
-					exp = o_exp
-					mant = o_mant.sub_unsigned_ljust(bits(o_exp - s_exp) + s_mant)
-				elif s_mant > o_mant:
-					exp = s_exp
-					mant = s_mant.sub_unsigned_ljust(o_mant)
-				elif s_mant < o_mant:
-					sign = not sign
-					exp = o_exp
-					mant = o_mant.sub_unsigned_ljust(s_mant)
-				else: # equal inputs, a-a == 0
-					return ArbitraryFloatType.best_precision(self, other).zero
-					
-				if any(mant):
-					exp -= mant.find(1)
-					mant = mant.lstrip()
-					return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
-				else: # zero
-					return ArbitraryFloatType.best_precision(self, other).zero
+			return None
+	def __sub__(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__sub_helper__(other)
+		if ret is not None: # Special case happened
+			return ret
+		# Both finite
+		if self.sign ^ other.sign: # -5 - +6 == -5 + -6), +5 - -6 == +5 + +6
+			return self + -other
+		else: # same sign
+			sign, s_exp, s_mant = self.normalized
+			_   , o_exp, o_mant = other.normalized
+
+			if s_exp > o_exp:
+				exp = s_exp
+				mant = s_mant.sub_unsigned_ljust(bits(s_exp - o_exp) + o_mant)
+			elif s_exp < o_exp:
+				sign = not sign
+				exp = o_exp
+				mant = o_mant.sub_unsigned_ljust(bits(o_exp - s_exp) + s_mant)
+			elif s_mant > o_mant:
+				exp = s_exp
+				mant = s_mant.sub_unsigned_ljust(o_mant)
+			elif s_mant < o_mant:
+				sign = not sign
+				exp = o_exp
+				mant = o_mant.sub_unsigned_ljust(s_mant)
+			else: # equal inputs, a-a == 0
+				return ArbitraryFloatType.best_precision(self, other).zero
+
+			if any(mant):
+				exp -= mant.find(1)
+				mant = mant.lstrip()
+				return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+			else: # zero
+				return ArbitraryFloatType.best_precision(self, other).zero
+	def sub(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__sub_helper__(other)
+		if ret is not None: # Special case happened
+			return ret
+		# Both finite
+		if self.sign ^ other.sign: # -5 - +6 == -5 + -6), +5 - -6 == +5 + +6
+			return self.add(-other)
+		else: # same sign
+			sign, s_exp, s_mant = self.normalized
+			_   , o_exp, o_mant = other.normalized
+
+			if s_exp > o_exp:
+				exp = s_exp
+				mant = s_mant.sub_unsigned_ljust(bits(s_exp - o_exp) + o_mant)
+			elif s_exp < o_exp:
+				sign = not sign
+				exp = o_exp
+				mant = o_mant.sub_unsigned_ljust(bits(o_exp - s_exp) + s_mant)
+			elif s_mant > o_mant:
+				exp = s_exp
+				mant = s_mant.sub_unsigned_ljust(o_mant)
+			elif s_mant < o_mant:
+				sign = not sign
+				exp = o_exp
+				mant = o_mant.sub_unsigned_ljust(s_mant)
+			else: # equal inputs, a-a == 0
+				return ArbitraryFloatType.best_precision(self, other).zero
+
+			if any(mant):
+				exp -= mant.find(1)
+				mant = mant.lstrip()
+				return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+			else: # zero
+				return ArbitraryFloatType.best_precision(self, other).zero
 	
 	def __truediv__(self, other):
 		if not isinstance(other, ArbitraryFloatBase):
@@ -780,6 +869,19 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			other = ArbitraryFloatType.least_precision(other)(other)
 		return other.__truediv__(self)
 	
+	def __pow_helper__(self, other):
+		raise TODO
+		# shoule implement these checks in the way specified by man pow(3)
+		if (self.normalized_exp == 0 and self.isint) or other.iszero: # self == 1 or other == 0
+			return ArbitraryFloatType.best_precision(self, other)(1)
+		elif self.isnan:
+			return ArbitraryFloatType.best_precision(self, other).nan
+		elif other.isnan:
+			if self.normalized_exp == 0 and self.isint: # self is 1, 1**nan is 1 for some reason
+				raise TODO
+			return ArbitraryFloatType.best_precision(self, other).nan
+		else:
+			raise TODO
 	def __pow__(self, other):
 		if isinstance(other, int) or (isinstance(other, ArbitraryFloatBase) and other.isint) or (isinstance(other, float) and other.is_integer()):
 			other = int(other)
@@ -793,19 +895,29 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			return ret
 		elif not isinstance(other, ArbitraryFloatBase):
 			other = ArbitraryFloatType.least_precision(other)(other)
-		
+		ret = self.__pow_helper__(other)
+		if ret is not None: # Special case happened
+			return ret
 		raise TODO
-		# shoule implement these checks in the way specified by man pow(3)
-		if (self.normalized_exp == 0 and self.isint) or other.iszero: # self == 1 or other == 0
-			return ArbitraryFloatType.best_precision(self, other)(1)
-		elif self.isnan:
-			return ArbitraryFloatType.best_precision(self, other).nan
-		elif other.isnan:
-			if self.normalized_exp == 0 and self.isint: # self is 1, 1**nan is 1 for some reason
-				raise TODO
-			return ArbitraryFloatType.best_precision(self, other).nan
-		else:
-			raise TODO
+	def pow(self, other):
+		if isinstance(other, int) or (isinstance(other, ArbitraryFloatBase) and other.isint) or (isinstance(other, float) and other.is_integer()):
+			other = int(other)
+			ret = ArbitraryFloatType(1, 1)(1)
+			while other > 0:
+				ret = ret.mul(self)
+				other -= 1
+			inv = ArbitraryFloatType(self.exp_len+1, self.mant_len**2)(1)/self
+			while other < 0:
+				ret = ret.mul(inv)
+				other += 1
+			return ret
+		elif not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__pow_helper__(other)
+		if ret is not None: # Special case happened
+			return ret
+		raise TODO
+		
 	
 	def __and__(self, other):
 		"""
