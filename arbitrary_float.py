@@ -1,7 +1,22 @@
 from bits import bits
 import struct
+import math
 
 color = True
+
+def continued_fraction(a, b, base=2): # https://possiblywrong.wordpress.com/2017/09/30/digits-of-pi-and-python-generators/
+	"""Generate digits of continued fraction a(0)+b(1)/(a(1)+b(2)/(...)."""
+	(p0, q0), (p1, q1) = (a(0), 1), (a(1) * a(0) + b(1), a(1))
+	k = 1
+	while True:
+		(d0, r0), (d1, r1) = divmod(p0, q0), divmod(p1, q1)
+		if d0 == d1:
+			yield d1
+			p0, p1 = base * r0, base * r1
+		else:
+			k = k + 1
+			x, y = a(k), b(k)
+			(p0, q0), (p1, q1) = (p1, q1), (x * p1 + y * p0, x * q1 + y * q0)
 
 class TODO(Exception):
 	pass
@@ -83,7 +98,43 @@ class ArbitraryFloatType(type):
 			return 2**(self.max_normal_exp+1)-1
 		else:
 			return 2**(self.mant_len+1)
-		
+	@property
+	def pi(self):
+		pi_cont = continued_fraction(
+			lambda k: 0 if k == 0 else 2 * k - 1,
+			lambda k: 4 if k == 1 else (k - 1)**2,
+			2
+		)
+		next(pi_cont) # 3, all following are [0,1]
+		mant = bits([1,1] + [next(pi_cont) for i in range(self.mant_len-1)]) # 1+mant_len is the necesary length == 2 + mant_len-1
+		if next(pi_cont): # just after the end
+			mant = mant.inc() # pi is irrational, so there will always be another set bit afterwards to cause a round
+		return self(False, 1, mant)
+	@property
+	def e(self):
+		e_cont = continued_fraction(
+			lambda k: 2 if k == 0 else 2*(k//3+1) if k%3 == 2 else 1,
+			lambda k: 1,
+			2
+		)
+		next(e_cont) # 2, all following are [0,1]
+		mant = bits([1,0] + [next(e_cont) for i in range(self.mant_len-1)]) # 1+mant_len is the necesary length == 2 + mant_len-1
+		if next(e_cont): # just after the end
+			mant = mant.inc() # e is irrational, so there will always be another set bit afterwards to cause a round
+		return self(False, 1, mant)
+	@property
+	def phi(self):
+		phi_cont = continued_fraction(
+			lambda k: 1,
+			lambda k: 1,
+			2
+		)
+		mant = bits([next(phi_cont) for i in range(self.mant_len+1)]) # 1+mant_len is the necesary length
+		if next(phi_cont): # just after the end
+			mant = mant.inc() # phi is irrational, so there will always be another set bit afterwards to cause a round
+		return self(False, 0, mant)
+	
+	
 class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	def __getattr__(self, attr):
 		return type(self).__getattribute__(type(self), attr)
@@ -128,6 +179,20 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	@property
 	def isnan(self):
 		return all(self.exp_bits) and any(self.mant_bits)
+	@property
+	def isint(self):
+		if self.isinf or self.isnan:
+			return False
+		elif self.iszero:
+			return True
+		else:
+			sign, exp, mant = self.normalized
+			if exp < 0:
+				return False
+			elif any(mant[exp+1:]):
+				return False
+			else:
+				return True
 	def __init_helper__(self, *args):
 		"Init self with normalized bool sign, int exp, and bits mant, rounding and over/underflowing accordingly"
 		if len(args) == 2:
@@ -581,6 +646,20 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			other = ArbitraryFloatType.least_precision(other)(other)
 		return other.__truediv__(self)
 	
+	def __pow__(self, other):
+		if isinstance(other, int) or (isinstance(other, ArbitraryFloatBase) and other.isint) or (isinstance(other, float) and other.is_integer()):
+			other = int(other)
+			ret = type(self)(1)
+			while other > 0:
+				ret *= self
+				other -= 1
+			while other < 0:
+				ret /= self
+				other += 1
+			return ret
+		else:
+			raise TODO
+	
 	def __and__(self, other):
 		"""
 		Gives the positive result of binary ANDing the theoretical infinite mantissas of abs(self) and abs(other)
@@ -726,6 +805,13 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 				return type(self).__name__ + "(%s) # error \n\t%s" % (bits(self), '\n\t'.join(traceback.format_exc().split('\n')))
 			else:
 				return type(self).__name__ + "(\x1b[31m%s\x1b[32m%s\x1b[33m%s\x1b[0m) # error \n\t%s" % (bits([self.sign]), self.exp_bits, self.mant_bits, '\n\t'.join(traceback.format_exc().split('\n')))
+	
+	def sin(self, terms=4):
+		"Inaccurate"
+		ret = self
+		for i in range(1,terms):
+			ret += (-1)**i * self**(2*i+1) / math.factorial(2*i+1)
+		return ret
 	
 	# Commutative right-side operators
 	__radd__ = __add__
