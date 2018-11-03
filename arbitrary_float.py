@@ -587,6 +587,9 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		return type(self)(not self.sign, self.exp_bits[:], self.mant_bits[:])
 	def __pos__(self):
 		return self
+	def __abs__(self):
+		return type(self)(False, self.exp_bits[:], self.mant_bits[:])
+		
 	
 	def __mul__(self, other):
 		if not isinstance(other, ArbitraryFloatBase):
