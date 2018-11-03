@@ -44,18 +44,42 @@ class ArbitraryFloatType(type):
 	def __init__(cls, *args):
 		pass
 	@staticmethod
-	def least_precision(val):
-		"Return a type that can represent val exactly\nAlways ArbitraryFloatType(11, 52) for floats\nFor ints, returns a type that can represent every integer in [0,val]"
-		if isinstance(val, float):
-			return ArbitraryFloatType(11, 52) # IEEE 754 Double
-		elif isinstance(val, int):
-			if abs(val) <= 1:
-				return ArbitraryFloatType(1, 1)
-			return ArbitraryFloatType(1+(val.bit_length()-1).bit_length(), val.bit_length()-1)
-		elif isinstance(val, ArbitraryFloatBase):
-			return type(val)
-		else:
-			raise TypeError(val)
+	def least_precision(*args):
+		"""
+		If given one argument:
+			Return a type that can represent the argument exactly
+			Always ArbitraryFloatType(11, 52) for floats
+			For ints, returns a type that can represent every integer in [0,val]
+		If given two arguments:
+			Return a type that can represent the arguments exactly as a normal value
+			arg[0] is an int exp
+			arg[2] is a normalized bits mantissa
+		"""
+		if len(args) == 0:
+			return ArbitraryFloatType(1, 1)
+		elif len(args) == 1:
+			val = args[0]
+			if isinstance(val, float):
+				return ArbitraryFloatType(11, 52) # IEEE 754 Double
+			elif isinstance(val, int):
+				if abs(val) <= 1:
+					return ArbitraryFloatType(1, 1)
+				return ArbitraryFloatType(1+(val.bit_length()-1).bit_length(), val.bit_length()-1)
+			elif isinstance(val, ArbitraryFloatBase):
+				return type(val)
+			else:
+				raise TypeError(val)
+		elif len(args) == 2:
+			exp, mant = args
+			if not isinstance(exp, int) or not isinstance(mant, bits):
+				raise TypeError("least_precision(exp, mant) takes (int, bits) not %r" % (tuple(type(arg) for arg in args),))
+			if len(mant) == 0 or not mant[0]:
+				raise ValueError("Mantissa must be normalized for least_precision(exp, mant), not %r" % mant)
+			if exp < 0:
+				exp = -exp + 1 # max_normal_exp = -min_normal_exp + 1
+			exp_len = exp.bit_length() + 1 if exp else 2 # exp_len of 1 has only subnormal values
+			return ArbitraryFloatType(exp_len, len(mant)-1)
+			
 	@staticmethod
 	def best_precision(a, b):
 		"Return a type that can represent both a and b exactly"
@@ -249,9 +273,9 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 					if all(mant[:self.mant_len+1]): # half-even round up to inf
 						self.exp_bits = ~bits(self.exp_len)
 						self.mant_bits = bits(self.mant_len)
-					elif mant[self.mant_len+1] and \
-						(mant[self.mant_len] or  # half-even up 
-						 any(mant[self.mant_len+2:])): # round up normally
+					elif mant[self.mant_len] and \
+						(mant[self.mant_len-1] or  # half-even up 
+						 any(mant[self.mant_len+1:])): # round up normally
 						self.exp_bits = bits(self.exp_len)
 						self.mant_bits = mant[:self.mant_len].inc()
 					else: # no rounding up
@@ -260,7 +284,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		elif exp > self.max_normal_exp: # round up to inf
 			self.exp_bits = ~bits(self.exp_len)
 			self.mant_bits = bits(self.mant_len)
-		elif exp > self.min_normal_exp:
+		elif exp >= self.min_normal_exp:
 			if len(mant)-1 > self.mant_len: # could cause rouding
 				if all(mant[1:].crop(self.mant_len+1)): # half-even round up, increasing exp
 					if exp+1 > self.max_normal_exp: # round up to inf
@@ -590,10 +614,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	def __abs__(self):
 		return type(self)(False, self.exp_bits[:], self.mant_bits[:])
 		
-	
-	def __mul__(self, other):
-		if not isinstance(other, ArbitraryFloatBase):
-			other = ArbitraryFloatType.least_precision(other)(other)
+	def __mul_helper__(self, other):
 		if self.isnan or other.isnan or \
 			(self.isinf and other.iszero) or \
 			(self.iszero and other.isinf):
@@ -609,16 +630,23 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			else:
 				return +ArbitraryFloatType.best_precision(self, other).inf
 		else: # both are finite
-			s_sign, s_exp, s_mant = self.normalized
-			o_sign, o_exp, o_mant = other.normalized
-			sign = s_sign ^ o_sign
-			exp = s_exp + o_exp
-			mant = s_mant.multiply_unsigned(o_mant)
-			if mant[0]:
-				exp += 1
-			else:
-				mant = mant[1:]
-			return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+			return None
+	def __mul__(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__mul_helper__(other)
+		if ret is not None: # Special case happened
+			return ret
+		s_sign, s_exp, s_mant = self.normalized
+		o_sign, o_exp, o_mant = other.normalized
+		sign = s_sign ^ o_sign
+		exp = s_exp + o_exp
+		mant = s_mant.multiply_unsigned(o_mant)
+		if mant[0]:
+			exp += 1
+		else:
+			mant = mant[1:]
+		return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
 	
 	def __add__(self, other):
 		if not isinstance(other, ArbitraryFloatBase):
