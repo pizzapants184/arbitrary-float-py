@@ -194,6 +194,9 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	def isnormal(self):
 		return any(self.exp_bits) and not all(self.exp_bits)
 	@property
+	def isfinite(self):
+		return self.isnormal or self.issubnormal
+	@property
 	def isinf(self):
 		return all(self.exp_bits) and not any(self.mant_bits)
 	@property
@@ -459,6 +462,86 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 					return -cls.nan
 				else:
 					return cls.nan
+	
+	def totalOrder(self, other):
+		"""
+		Is self ordered before other or the same as other (-0 is not the same as +0 for this purpose)?
+		-NaN < -inf < -finite < -0 < +0 < +finite < +inf < +NaN
+		"""
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		
+		if self.isnan or other.isnan:
+			if self.isnan and self.sign:
+				if other.isnan and other.sign:
+					return self.mant_bits >= other.mant_bits # IEEE 754 5.10.d.3.iii
+				else:
+					return True # IEEE 754 5.10.d.1 and IEEE 754 5.10.d.3.i
+			elif self.isnan:
+				if other.isnan and not other.sign:
+					return self.mant_bits <= other.mant_bits # IEEE 754 5.10.d.3.iii
+				else:
+					return False # IEEE 754 5.10.d.1 and IEEE 754 5.10.d.3.i
+			elif other.isnan and other.sign:
+				return False # self is not NaN, everything else > -NaN
+			elif other.isnan:
+				return True # self is not NaN, everything else <= +Nan
+		# No NaN below here
+		elif self.isinf and self.sign:
+			return True # -inf <= everything other than -NaN
+		elif self.isinf:
+			if other.isinf and not other.sign:
+				return True # +inf <= +inf
+			else:
+				return False # +inf > everything other than +NaN and +inf
+		elif other.isinf and other.sign:
+			return False # everything other than -Nan and -inf > -inf
+		elif other.isinf:
+			return True # everything other than +Nan and +inf <= +inf
+		# No NaN or inf below here
+		elif self.iszero:
+			if other.iszero and (self.sign or not other.sign):
+				return True # -0 <= +0 and -0 <= -0 and +0 <= +0
+			elif other.iszero:
+				return False # +0 > -0
+			elif other.sign:
+				return False # 0 > -finite
+			else:
+				return True # 0 <= +finite
+		elif other.iszero:
+			if self.sign:
+				return True # -finite <= 0
+			else:
+				return False # +finite > 0
+		# Only finite below here
+		s_sign, s_exp, s_mant = self.normalized
+		o_sign, o_exp, o_mant = other.normalized
+		if len(s_mant) > len(o_mant):
+			o_mant = o_mant.extend(len(s_mant))
+		else:
+			s_mant = s_mant.extend(len(o_mant))
+		if s_sign and not o_sign:
+			return True #-anything < +anything
+		elif o_sign and not s_sign:
+			return False # +anything > -anything
+		# Signs are the same
+		if s_sign: # swap and abs() if negative to simplify logic
+			s_sign, o_sign = False, False
+			s_exp, o_exp = o_exp, s_exp
+			s_mant, o_mant = o_mant, s_mant
+		# Both are positive
+		if s_exp > o_exp:
+			return False
+		elif s_exp < o_exp:
+			return True
+		elif s_mant > o_mant:
+			return False
+		else:
+			return True
+	def totalOrderMag(self, other):
+		return abs(self).totalOrder(abs(other))
+	
+	
 	
 	def inc(self):
 		# TODO: count>1
