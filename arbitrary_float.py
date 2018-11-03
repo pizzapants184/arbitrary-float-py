@@ -219,7 +219,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		return any(self.exp_bits) and not all(self.exp_bits)
 	@property
 	def isfinite(self):
-		return self.isnormal or self.issubnormal
+		return self.isnormal or self.issubnormal or self.iszero
 	@property
 	def isinf(self):
 		return all(self.exp_bits) and not any(self.mant_bits)
@@ -906,10 +906,11 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			while other > 0:
 				ret = ret.mul(self)
 				other -= 1
-			inv = ArbitraryFloatType(self.exp_len+1, self.mant_len**2)(1)/self
-			while other < 0:
-				ret = ret.mul(inv)
-				other += 1
+			if other < 0:
+				inv = ArbitraryFloatType(self.exp_len+1, self.mant_len**2)(1)/self
+				while other < 0:
+					ret = ret.mul(inv)
+					other += 1
 			return ret
 		elif not isinstance(other, ArbitraryFloatBase):
 			other = ArbitraryFloatType.least_precision(other)(other)
@@ -1069,7 +1070,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		"Inaccurate"
 		ret = self
 		for i in range(1,terms):
-			ret += (-1)**i * self**(2*i+1) / math.factorial(2*i+1)
+			ret += (-1)**i * self.pow(2*i+1) / math.factorial(2*i+1)
 		return ret
 	
 	# Commutative right-side operators
