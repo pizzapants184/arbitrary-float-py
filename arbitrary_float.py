@@ -156,6 +156,26 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			exp -= self.mant_bits.find(1)
 			return (self.sign, exp, self.mant_bits.lstrip())
 	@property
+	def normalized_exp(self):
+		"Returns an int exp"
+		if self.isinf or self.isnan or self.iszero:
+			raise ValueError("Cannot normalize inf, nan, or zero value %r" % self)
+		elif self.isnormal:
+			return self.exp
+		else: # subnormal
+			exp = self.exp - 1
+			exp -= self.mant_bits.find(1)
+			return exp
+	@property
+	def normalized_mant(self):
+		"Returns a bits normalized_mant"
+		if self.isinf or self.isnan or self.iszero:
+			raise ValueError("Cannot normalize inf, nan, or zero value %r" % self)
+		elif self.isnormal:
+			return [1] + self.mant_bits
+		else: # subnormal
+			return self.mant_bits.lstrip()
+	@property
 	def ispositive(self):
 		return not self.sign and not self.iszero and not self.isnan
 	@property
@@ -657,6 +677,19 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 				ret /= self
 				other += 1
 			return ret
+		elif not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		
+		raise TODO
+		# shoule implement these checks in the way specified by man pow(3)
+		if (self.normalized_exp == 0 and self.isint) or other.iszero: # self == 1 or other == 0
+			return ArbitraryFloatType.best_precision(self, other)(1)
+		elif self.isnan:
+			return ArbitraryFloatType.best_precision(self, other).nan
+		elif other.isnan:
+			if self.normalized_exp == 0 and self.isint: # self is 1, 1**nan is 1 for some reason
+				raise TODO
+			return ArbitraryFloatType.best_precision(self, other).nan
 		else:
 			raise TODO
 	
