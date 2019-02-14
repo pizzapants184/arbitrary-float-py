@@ -785,7 +785,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		if ret is not None: # Special case happened
 			return ret
 		# Both finite
-		if self.sign ^ other.sign: # -5 - +6 == -5 + -6), +5 - -6 == +5 + +6
+		if self.sign ^ other.sign: # -5 - +6 == -5 + (-6), +5 - -6 == +5 + +6
 			return self.add(-other)
 		else: # same sign
 			sign, s_exp, s_mant = self.normalized
@@ -811,7 +811,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			if any(mant):
 				exp -= mant.find(1)
 				mant = mant.lstrip()
-				return ArbitraryFloatType.best_precision(self, other)(sign, exp, mant)
+				return ArbitraryFloatType.least_precision(exp, mant)(sign, exp, mant)
 			else: # zero
 				return ArbitraryFloatType.best_precision(self, other).zero
 	
@@ -919,7 +919,16 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			return ret
 		raise TODO
 		
-	
+	def __and_helper__(self, other):
+		if self.isnan or other.isnan or \
+			self.isinf or other.isinf:
+			return ArbitraryFloatType.best_precision(self, other).nan
+		elif self.iszero:
+			return abs(ArbitraryFloatType.best_precision(self, other)(self))
+		elif other.iszero:
+			return abs(ArbitraryFloatType.best_precision(self, other)(other))
+		else: # both finite
+			return None
 	def __and__(self, other):
 		"""
 		Gives the positive result of binary ANDing the theoretical infinite mantissas of abs(self) and abs(other)
@@ -931,40 +940,80 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		"""
 		if not isinstance(other, ArbitraryFloatBase):
 			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__and_helper__(other)
+		if ret is not None:
+			return ret
+		
+		_, s_exp, s_mant = self.normalized
+		_, o_exp, o_mant = other.normalized
+
+		if s_exp == o_exp: # normalized values with same exp, leading 1 will stay
+			mant = s_mant.extend(max(len(s_mant), len(o_mant))) & o_mant.extend(max(len(s_mant), len(o_mant)))
+			return ArbitraryFloatType.best_precision(self, other)(False, s_exp, mant)
+		elif s_exp > o_exp:
+			exp = s_exp
+			exp_diff = s_exp - o_exp
+			big_mant, small_mant = s_mant, o_mant
+		else:
+			exp = o_exp
+			exp_diff = o_exp - s_exp
+			big_mant, small_mant = o_mant, s_mant
+		small_mant = bits(exp_diff) + small_mant
+		mant = big_mant.extend(max(len(big_mant), len(small_mant))) & small_mant.extend(max(len(big_mant), len(small_mant)))
+		if not any(mant):
+			return ArbitraryFloatType.best_precision(self, other).zero
+		exp -= mant.find(1)
+		mant = mant.lstrip()
+		return ArbitraryFloatType.best_precision(self, other)(False, exp, mant)
+	def and_(self, other):
+		"""
+		Gives the positive result of binary ANDing the theoretical infinite mantissas of abs(self) and abs(other)
+		nan & x == nan
+		inf & x == nan
+		0 & x == 0
+		5.5 & 3.7 == 1.5
+			101.1(0) & 11.10110011(0011) == 001.1(0)
+		"""
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__and_helper__(other)
+		if ret is not None:
+			return ret
+		
+		_, s_exp, s_mant = self.normalized
+		_, o_exp, o_mant = other.normalized
+
+		if s_exp == o_exp: # normalized values with same exp, leading 1 will stay
+			mant = s_mant.extend(max(len(s_mant), len(o_mant))) & o_mant.extend(max(len(s_mant), len(o_mant)))
+			return ArbitraryFloatType.least_precision(exp, mant)(False, s_exp, mant)
+		elif s_exp > o_exp:
+			exp = s_exp
+			exp_diff = s_exp - o_exp
+			big_mant, small_mant = s_mant, o_mant
+		else:
+			exp = o_exp
+			exp_diff = o_exp - s_exp
+			big_mant, small_mant = o_mant, s_mant
+		small_mant = bits(exp_diff) + small_mant
+		mant = big_mant.extend(max(len(big_mant), len(small_mant))) & small_mant.extend(max(len(big_mant), len(small_mant)))
+		if not any(mant):
+			return ArbitraryFloatType.best_precision(self, other).zero
+		exp -= mant.find(1)
+		mant = mant.lstrip()
+		return ArbitraryFloatType.least_precision(exp, mant)(False, exp, mant)
+	
+	def __or_helper__(self, other):
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
 		if self.isnan or other.isnan or \
 			self.isinf or other.isinf:
 			return self.nan
-		elif self.isinf:
-			return self
-		elif other.isinf:
-			return -other
 		elif self.iszero:
-			return -other
+			return abs(ArbitraryFloatType.best_precision(self, other)(other))
 		elif other.iszero:
-			return self
+			return abs(ArbitraryFloatType.best_precision(self, other)(self))
 		else: # both finite
-			_, s_exp, s_mant = self.normalized
-			_, o_exp, o_mant = other.normalized
-			
-			if s_exp == o_exp: # normalized values with same exp, leading 1 will stay
-				mant = s_mant.extend(max(len(s_mant), len(o_mant))) & o_mant.extend(max(len(s_mant), len(o_mant)))
-				return ArbitraryFloatType.best_precision(self, other)(False, s_exp, mant)
-			elif s_exp > o_exp:
-				exp = s_exp
-				exp_diff = s_exp - o_exp
-				big_mant, small_mant = s_mant, o_mant
-			else:
-				exp = o_exp
-				exp_diff = o_exp - s_exp
-				big_mant, small_mant = o_mant, s_mant
-			small_mant = bits(exp_diff) + small_mant
-			mant = big_mant.extend(max(len(big_mant), len(small_mant))) & small_mant.extend(max(len(big_mant), len(small_mant)))
-			if not any(mant):
-				return ArbitraryFloatType.best_precision(self, other).zero
-			exp -= mant.find(1)
-			mant = mant.lstrip()
-			return ArbitraryFloatType.best_precision(self, other)(False, exp, mant)
-	
+			return None
 	def __or__(self, other):
 		"""
 		Gives the positive result of binary ORing the theoretical infinite mantissas of abs(self) and abs(other)
@@ -976,37 +1025,69 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		"""
 		if not isinstance(other, ArbitraryFloatBase):
 			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__or_helper__(other)
+		if ret is not None:
+			return ret
+		
+		_, s_exp, s_mant = self.normalized
+		_, o_exp, o_mant = other.normalized
+
+		if s_exp >= o_exp:
+			exp = s_exp
+			exp_diff = s_exp - o_exp
+			big_mant, small_mant = s_mant, o_mant
+		else:
+			exp = o_exp
+			exp_diff = o_exp - s_exp
+			big_mant, small_mant = o_mant, s_mant
+		small_mant = bits(exp_diff) + small_mant
+		mant = big_mant.extend(max(len(big_mant), len(small_mant))) | small_mant.extend(max(len(big_mant), len(small_mant)))
+		# don't need to re-normalize since ORing cant remove the leading 1
+		return ArbitraryFloatType.best_precision(self, other)(False, exp, mant)
+	def or_(self, other):
+		"""
+		Gives the positive result of binary ORing the theoretical infinite mantissas of abs(self) and abs(other)
+		nan | x == nan
+		inf | x == nan
+		0 | x == x
+		5.5 & 3.7 == 7.7
+			101.1(0) | 11.1011(0011) == 111.1011(0011)
+		"""
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__or_helper__(other)
+		if ret is not None:
+			return ret
+		
+		_, s_exp, s_mant = self.normalized
+		_, o_exp, o_mant = other.normalized
+
+		if s_exp >= o_exp:
+			exp = s_exp
+			exp_diff = s_exp - o_exp
+			big_mant, small_mant = s_mant, o_mant
+		else:
+			exp = o_exp
+			exp_diff = o_exp - s_exp
+			big_mant, small_mant = o_mant, s_mant
+		small_mant = bits(exp_diff) + small_mant
+		mant = big_mant.extend(max(len(big_mant), len(small_mant))) | small_mant.extend(max(len(big_mant), len(small_mant)))
+		# don't need to re-normalize since ORing cant remove the leading 1
+		return ArbitraryFloatType.least_precision(exp, mant)(False, exp, mant)
+	
+	def __xor_helper__(self, other):
 		if self.isnan or other.isnan or \
 			self.isinf or other.isinf:
 			return self.nan
-		elif self.isinf:
-			return self
-		elif other.isinf:
-			return -other
 		elif self.iszero:
-			return -other
+			return abs(ArbitraryFloatType.best_precision(self, other)(other))
 		elif other.iszero:
-			return self
+			return abs(ArbitraryFloatType.best_precision(self, other)(self))
 		else: # both finite
-			_, s_exp, s_mant = self.normalized
-			_, o_exp, o_mant = other.normalized
-			
-			if s_exp >= o_exp:
-				exp = s_exp
-				exp_diff = s_exp - o_exp
-				big_mant, small_mant = s_mant, o_mant
-			else:
-				exp = o_exp
-				exp_diff = o_exp - s_exp
-				big_mant, small_mant = o_mant, s_mant
-			small_mant = bits(exp_diff) + small_mant
-			mant = big_mant.extend(max(len(big_mant), len(small_mant))) | small_mant.extend(max(len(big_mant), len(small_mant)))
-			# don't need to re-normalize since ORing cant remove the leading 1
-			return ArbitraryFloatType.best_precision(self, other)(False, exp, mant)
-	
+			return None
 	def __xor__(self, other):
 		"""
-		Gives the positive result of binary ANDing the theoretical infinite mantissas of abs(self) and abs(other)
+		Gives the positive result of binary XORing the theoretical infinite mantissas of abs(self) and abs(other)
 		nan ^ x == nan
 		inf ^ x == nan
 		0 ^ x == x
@@ -1015,44 +1096,115 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		"""
 		if not isinstance(other, ArbitraryFloatBase):
 			other = ArbitraryFloatType.least_precision(other)(other)
-		if self.isnan or other.isnan or \
-			self.isinf or other.isinf:
-			return self.nan
-		elif self.isinf:
-			return self
-		elif other.isinf:
-			return -other
-		elif self.iszero:
-			return -other
-		elif other.iszero:
-			return self
-		else: # both finite
-			_, s_exp, s_mant = self.normalized
-			_, o_exp, o_mant = other.normalized
-			
-			if s_exp == o_exp: # normalized values with same exp, leading 1 will not stay
-				mant = s_mant.extend(max(len(s_mant), len(o_mant))) ^ o_mant.extend(max(len(s_mant), len(o_mant)))
-				if not any(mant):
-					return ArbitraryFloatType.best_precision(self, other).zero
-				exp = s_exp - mant.find(1)
-				mant = mant.lstrip()
-				return ArbitraryFloatType.best_precision(self, other)(False, exp, mant)
-			elif s_exp > o_exp: # leading 1 will stay
-				exp = s_exp
-				exp_diff = s_exp - o_exp
-				big_mant, small_mant = s_mant, o_mant
-			else: # leading 1 will stay
-				exp = o_exp
-				exp_diff = o_exp - s_exp
-				big_mant, small_mant = o_mant, s_mant
-			small_mant = bits(exp_diff) + small_mant
-			mant = big_mant.extend(max(len(big_mant), len(small_mant))) ^ small_mant.extend(max(len(big_mant), len(small_mant)))
-			# don't need to re-normalize since XORing cant remove the leading 1 from unaligned mantissas
+		ret = self.__xor_helper__(other)
+		if ret is not None:
+			return ret
+		
+		_, s_exp, s_mant = self.normalized
+		_, o_exp, o_mant = other.normalized
+
+		if s_exp == o_exp: # normalized values with same exp, leading 1 will not stay
+			mant = s_mant.extend(max(len(s_mant), len(o_mant))) ^ o_mant.extend(max(len(s_mant), len(o_mant)))
+			if not any(mant):
+				return ArbitraryFloatType.best_precision(self, other).zero
+			exp = s_exp - mant.find(1)
+			mant = mant.lstrip()
 			return ArbitraryFloatType.best_precision(self, other)(False, exp, mant)
+		elif s_exp > o_exp: # leading 1 will stay
+			exp = s_exp
+			exp_diff = s_exp - o_exp
+			big_mant, small_mant = s_mant, o_mant
+		else: # leading 1 will stay
+			exp = o_exp
+			exp_diff = o_exp - s_exp
+			big_mant, small_mant = o_mant, s_mant
+		small_mant = bits(exp_diff) + small_mant
+		mant = big_mant.extend(max(len(big_mant), len(small_mant))) ^ small_mant.extend(max(len(big_mant), len(small_mant)))
+		# don't need to re-normalize since XORing cant remove the leading 1 from unaligned mantissas
+		return ArbitraryFloatType.best_precision(self, other)(False, exp, mant)
+	def xor(self, other):
+		"""
+		Gives the positive result of binary XORing the theoretical infinite mantissas of abs(self) and abs(other)
+		nan ^ x == nan
+		inf ^ x == nan
+		0 ^ x == x
+		5.5 ^ 3.7 == 6.2
+			101.1(0) & 11.10(1100) == 110.00(1100)
+		"""
+		if not isinstance(other, ArbitraryFloatBase):
+			other = ArbitraryFloatType.least_precision(other)(other)
+		ret = self.__xor_helper__(other)
+		if ret is not None:
+			return ret
+		
+		_, s_exp, s_mant = self.normalized
+		_, o_exp, o_mant = other.normalized
+
+		if s_exp == o_exp: # normalized values with same exp, leading 1 will not stay
+			mant = s_mant.extend(max(len(s_mant), len(o_mant))) ^ o_mant.extend(max(len(s_mant), len(o_mant)))
+			if not any(mant):
+				return ArbitraryFloatType.best_precision(self, other).zero
+			exp = s_exp - mant.find(1)
+			mant = mant.lstrip()
+			return ArbitraryFloatType.least_precision(exp, mant)(False, exp, mant)
+		elif s_exp > o_exp: # leading 1 will stay
+			exp = s_exp
+			exp_diff = s_exp - o_exp
+			big_mant, small_mant = s_mant, o_mant
+		else: # leading 1 will stay
+			exp = o_exp
+			exp_diff = o_exp - s_exp
+			big_mant, small_mant = o_mant, s_mant
+		small_mant = bits(exp_diff) + small_mant
+		mant = big_mant.extend(max(len(big_mant), len(small_mant))) ^ small_mant.extend(max(len(big_mant), len(small_mant)))
+		# don't need to re-normalize since XORing cant remove the leading 1 from unaligned mantissas
+		return ArbitraryFloatType.least_precision(exp, mant)(False, exp, mant)
+
+	#in another function (to retur nthe shortest unique repr, compare digits to self.inc and self.dec
 	
-	
-	def _decimal_str(self):
-		pass
+	def _evenbase_str(self, base):
+		if base % 2:
+			raise ValueError(base,"is not a multiple of 2")
+		elif base != 10:
+			raise TODO("Change str(int) calls to something that deals with base")
+			
+		if self.isinf:
+			return "-"*self.sign + "inf"
+		elif self.isnan:
+			return "nan"
+		elif self.iszero:
+			return "-"*self.sign + "0.0"
+		
+		
+		
+		sign, exp, mant = self.normalized
+		
+		num = mant.decode_int()
+		effective_exp = len(mant) - exp - 1
+		print(num, effective_exp, *self.normalized)
+		if effective_exp >= 0:
+			num *= (base//2)**effective_exp
+			num_str = str(num)
+			print(num_str)
+			num_str = num_str.rjust(effective_exp+1, "0")
+			print(num_str)
+			if exp >= 0:
+				return "-"*sign + num_str[:-effective_exp] + "." + num_str[-effective_exp:]
+			else:
+				return "-"*sign + num_str[:-effective_exp] + "." + num_str[-effective_exp:]
+		else:
+			num *= 2**-effective_exp
+			return "-"*sign + str(num) + ".0"
+		
+		print(num)
+		
+		#decimal_num = mant.decode_int()
+		#for i in range(len(mant)-1):
+		#	decimal_num *= 5
+		#exp -= len(mant)-1
+		#decimal_str = str(decimal_num)
+		#decimal_str = "-"*sign + decimal_str[:-exp] + "." + decimal_str[-exp:]
+		#return decimal_str
 	def __repr__(self):
 		try:
 			if not color:
@@ -1081,7 +1233,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	__rxor__ = __xor__
 	
 	# Anticommutative right-side operators
-	__rsub__ = lambda s, o: -(s - o)
+	__rsub__ = lambda s, o: -s + o
 	
 
 Quarter = ArbitraryFloatType(4, 3)
