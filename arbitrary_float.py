@@ -1,6 +1,7 @@
 from bits import bits
 import struct
 import math
+import base as base_module
 
 color = True
 
@@ -1165,8 +1166,10 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	def _evenbase_str(self, base):
 		if base % 2:
 			raise ValueError(base,"is not a multiple of 2")
-		elif base != 10:
-			raise TODO("Change str(int) calls to something that deals with base")
+		elif not base:
+			raise ValueError("Cannot convert to base zero")
+		elif base > len(base_module.digits):
+			raise ValueError("Base %d is too large" % base)
 			
 		if self.isinf:
 			return "-"*self.sign + "inf"
@@ -1184,7 +1187,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		print(num, effective_exp, *self.normalized)
 		if effective_exp >= 0:
 			num *= (base//2)**effective_exp
-			num_str = str(num)
+			num_str = base_module.to_positional_base(num, base)
 			print(num_str)
 			num_str = num_str.rjust(effective_exp+1, "0")
 			print(num_str)
@@ -1194,7 +1197,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 				return "-"*sign + num_str[:-effective_exp] + "." + num_str[-effective_exp:]
 		else:
 			num *= 2**-effective_exp
-			return "-"*sign + str(num) + ".0"
+			return "-"*sign + base_module.to_positional_base(num, base) + ".0"
 		
 		print(num)
 		
