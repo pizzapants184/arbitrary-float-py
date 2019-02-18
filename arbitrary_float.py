@@ -305,7 +305,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 				self.mant_bits = mant[1:].extend(self.mant_len)
 				self.exp_bits = bits.encode_int(exp + self.bias, self.exp_len)
 		elif exp >= self.min_subnormal_exp:
-			mant = [0]*(self.min_normal_exp - exp - 1) + mant.extend(self.mant_len)
+			mant = [0]*(self.min_normal_exp - exp - 1) + mant.extend(self.mant_len+1)
 			if exp == self.max_subnormal_exp and all(mant.crop(self.mant_len+1)): # round up, going to normal
 				self.exp_bits = bits.encode_int(1, self.exp_len)
 				self.mant_bits = bits(self.mant_len)
