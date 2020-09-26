@@ -1,3 +1,5 @@
+from typing import Dict, Iterator, Callable, Tuple, ClassVar
+
 from bits import bits
 import struct
 import math
@@ -5,7 +7,7 @@ import base as base_module
 
 color = True
 
-def continued_fraction(a, b, base=2): # https://possiblywrong.wordpress.com/2017/09/30/digits-of-pi-and-python-generators/
+def continued_fraction(a: Callable[[int], int], b: Callable[[int], int], base: int = 2) -> Iterator[int]: # https://possiblywrong.wordpress.com/2017/09/30/digits-of-pi-and-python-generators/
 	"""Generate digits of continued fraction a(0)+b(1)/(a(1)+b(2)/(...)."""
 	(p0, q0), (p1, q1) = (a(0), 1), (a(1) * a(0) + b(1), a(1))
 	k = 1
@@ -23,8 +25,12 @@ class TODO(Exception):
 	pass
 
 class ArbitraryFloatType(type):
-	types = dict() # mapping from tuple(exp_len, mant_len) to class
-	base = None
+	types: ClassVar[Dict[Tuple[int, int], "ArbitraryFloatType"]] = dict() # mapping from tuple(exp_len, mant_len) to class
+	base: ClassVar["ArbitraryFloatType"] = None
+	
+	exp_len: int
+	mant_len: int
+	
 	def __new__(cls, *args):
 		if cls.base is None: # ArbitraryFloatBase creation
 			cls.base = type.__new__(cls, *args)
@@ -45,7 +51,7 @@ class ArbitraryFloatType(type):
 	def __init__(cls, *args):
 		pass
 	@staticmethod
-	def least_precision(*args):
+	def least_precision(*args) -> "ArbitraryFloatType":
 		"""
 		If given one argument:
 			Return a type that can represent the argument exactly
@@ -53,8 +59,8 @@ class ArbitraryFloatType(type):
 			For ints, returns a type that can represent every integer in [0,val]
 		If given two arguments:
 			Return a type that can represent the arguments exactly as a normal value
-			arg[0] is an int exp
-			arg[2] is a normalized bits mantissa
+			arg 0 is an int exp
+			arg 1 is a normalized bits mantissa
 		"""
 		if len(args) == 0:
 			return ArbitraryFloatType(1, 1)
@@ -80,6 +86,8 @@ class ArbitraryFloatType(type):
 				exp = -exp + 1 # max_normal_exp = -min_normal_exp + 1
 			exp_len = exp.bit_length() + 1 if exp else 2 # exp_len of 1 has only subnormal values
 			return ArbitraryFloatType(exp_len, len(mant)-1)
+		else:
+			raise TypeError("ArbitraryFloatType.least_precision expected 1 or 2 arguments, got %d" % len(args))
 			
 	@staticmethod
 	def best_precision(a, b):
@@ -90,22 +98,22 @@ class ArbitraryFloatType(type):
 			b = ArbitraryFloatType.least_precision(b)
 		return ArbitraryFloatType(max(a.exp_len, b.exp_len), max(a.mant_len, b.mant_len))
 	@property
-	def bias(self):
+	def bias(self) -> int:
 		"The (positive) exponent bias\nThe real exponent is (exp - bias)"
 		return 2**(self.exp_len-1)-1
 	@property
-	def min_normal_exp(self):
+	def min_normal_exp(self) -> int:
 		return 1 - self.bias
 	@property
-	def max_normal_exp(self):
+	def max_normal_exp(self) -> int:
 		# This used to be wrong, so I need to check everywhere that uses it
 		#return 2**self.exp_len - 1 - self.bias
 		return 2**self.exp_len - 2 - self.bias
 	@property
-	def min_subnormal_exp(self):
+	def min_subnormal_exp(self) -> int:
 		return 1 - self.bias - self.mant_len
 	@property
-	def max_subnormal_exp(self):
+	def max_subnormal_exp(self) -> int:
 		return -self.bias
 	
 	@property
@@ -164,13 +172,13 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 	def __getattr__(self, attr):
 		return type(self).__getattribute__(type(self), attr)
 	@property
-	def exp(self):
+	def exp(self) -> int:
 		if self.issubnormal:
 			return 1 - self.bias
 		else: #if self.isnormal:
 			return self.exp_bits.decode_int() - self.bias
 	@property
-	def normalized(self):
+	def normalized(self) -> Tuple[bool, int, bits]:
 		"Returns a 3-tuple of (bool sign, int exp, bits normalized_mant)"
 		if self.isinf or self.isnan or self.iszero:
 			raise ValueError("Cannot normalize inf, nan, or zero value %r" % self)
@@ -181,7 +189,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			exp -= self.mant_bits.find(1)
 			return (self.sign, exp, self.mant_bits.lstrip())
 	@property
-	def normalized_exp(self):
+	def normalized_exp(self) -> int:
 		"Returns an int exp"
 		if self.isinf or self.isnan or self.iszero:
 			raise ValueError("Cannot normalize inf, nan, or zero value %r" % self)
@@ -192,7 +200,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			exp -= self.mant_bits.find(1)
 			return exp
 	@property
-	def normalized_mant(self):
+	def normalized_mant(self) -> bits:
 		"Returns a bits normalized_mant"
 		if self.isinf or self.isnan or self.iszero:
 			raise ValueError("Cannot normalize inf, nan, or zero value %r" % self)
@@ -201,34 +209,34 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		else: # subnormal
 			return self.mant_bits.lstrip()
 	@property
-	def ispositive(self):
+	def ispositive(self) -> bool:
 		return not self.sign and not self.iszero and not self.isnan
 	@property
-	def isnegative(self):
+	def isnegative(self) -> bool:
 		return self.sign and not self.iszero and not self.isnan
 	@property
-	def issignless(self):
+	def issignless(self) -> bool:
 		return self.iszero or self.isnan
 	@property
-	def iszero(self):
+	def iszero(self) -> bool:
 		return not any(self.exp_bits) and not any(self.mant_bits)
 	@property
-	def issubnormal(self):
+	def issubnormal(self) -> bool:
 		return not any(self.exp_bits) and any(self.mant_bits)
 	@property
-	def isnormal(self):
+	def isnormal(self) -> bool:
 		return any(self.exp_bits) and not all(self.exp_bits)
 	@property
-	def isfinite(self):
+	def isfinite(self) -> bool:
 		return self.isnormal or self.issubnormal or self.iszero
 	@property
-	def isinf(self):
+	def isinf(self) -> bool:
 		return all(self.exp_bits) and not any(self.mant_bits)
 	@property
-	def isnan(self):
+	def isnan(self) -> bool:
 		return all(self.exp_bits) and any(self.mant_bits)
 	@property
-	def isint(self):
+	def isint(self) -> bool:
 		if self.isinf or self.isnan:
 			return False
 		elif self.iszero:
@@ -328,7 +336,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			val = args[0]
 			if isinstance(val, float):
 				val_bits = bits(struct.pack(">d", val))
-				sign = val_bits[0]
+				self.sign = sign = val_bits[0]
 				exp_bits = val_bits[1:12]
 				mant = val_bits[12:]
 				if all(exp_bits): # inf or nan double
@@ -409,7 +417,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			self.mant_bits = bits(self.mant_len)
 		else:
 			raise TypeError("%s takes 0 to 3 arguments" % type(self).__name__)
-	def __int__(self):
+	def __int__(self) -> int:
 		if self.isnan:
 			raise ValueError("Cannot convert %s NaN to integer" % type(self).__name__)
 		if self.isinf:
@@ -419,13 +427,13 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		sign, exp, mant = self.normalized
 		mant = mant.crop(exp+1)
 		return (-1)**self.sign * mant.decode_int()
-	def __float__(self):
+	def __float__(self) -> float:
 		if self.exp_len == 11 and self.mant_len == 52: # IEEE 754 double
 			return struct.unpack(">d", bytes([self.sign] + self.exp_bits + self.mant_bits))[0]
 		return float(ArbitraryFloatType(11, 52)(self))
-	def __bits__(self):
+	def __bits__(self) -> bits:
 		return [self.sign] + self.exp_bits + self.mant_bits
-	def hex(self):
+	def hex(self) -> str:
 		s = '-'*self.sign
 		if self.isinf:
 			return s + 'inf'
@@ -442,7 +450,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		s += '%+d' % self.exp
 		return s
 	@classmethod
-	def fromhex(cls, hexstr):
+	def fromhex(cls, hexstr: str):
 		import re
 		hex_re = re.compile(
 			"""
@@ -488,7 +496,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 				else:
 					return cls.nan
 	
-	def totalOrder(self, other):
+	def totalOrder(self, other) -> bool:
 		"""
 		Is self ordered before other or the same as other (-0 is not the same as +0 for this purpose)?
 		-NaN < -inf < -finite < -0 < +0 < +finite < +inf < +NaN
@@ -563,7 +571,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 			return False
 		else:
 			return True
-	def totalOrderMag(self, other):
+	def totalOrderMag(self, other) -> bool:
 		return abs(self).totalOrder(abs(other))
 	
 	
@@ -589,7 +597,7 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		else: # zero
 			return type(self)(False, bits(self.exp_len), bits.encode_int(1, self.mant_len))
 	def dec(self):
-		# TODO
+		# TODO: count>1
 		if self.isnan:
 			return self
 		elif self.isnegative:
@@ -1160,7 +1168,27 @@ class ArbitraryFloatBase(metaclass=ArbitraryFloatType):
 		mant = big_mant.extend(max(len(big_mant), len(small_mant))) ^ small_mant.extend(max(len(big_mant), len(small_mant)))
 		# don't need to re-normalize since XORing cant remove the leading 1 from unaligned mantissas
 		return ArbitraryFloatType.least_precision(exp, mant)(False, exp, mant)
-
+	
+	def log2(self):
+		if self.iszero:
+			return -self.inf
+		elif self.isnan or self.sign:
+			return self.nan
+		elif self.isinf:
+			return self.inf
+		_, exp, mant = self.normalized
+		raise TODO
+		z=0
+		for i in range(10):
+			z *= 2
+			mant = mant.multiply_unsigned(mant)
+			if mant[0]:
+				z += 1
+			mant = mant[1:]
+			print(z, mant)
+			
+		
+	
 	#in another function (to retur nthe shortest unique repr, compare digits to self.inc and self.dec
 	
 	def _evenbase_str(self, base):
@@ -1254,13 +1282,13 @@ class LongDouble(ArbitraryFloatBase):
 	def __repr__(self):
 		try:
 			if not color:
-				return type(self).__name__ + "(%s) # %r" % (bits(self), float(self))
+				return "LongDouble(%s) # %r" % (bits(self), float(self))
 			else:
-				return type(self).__name__ + "(\x1b[31m%s\x1b[32m%s\x1b[34m%s\x1b[33m%s\x1b[0m) # %r" % (bits([self.sign]), self.exp_bits, bits([self.isnormal]), self.mant_bits, float(self))
+				return "LongDouble(\x1b[31m%s\x1b[32m%s\x1b[34m%s\x1b[33m%s\x1b[0m) # %r" % (bits([self.sign]), self.exp_bits, bits([self.isnormal]), self.mant_bits, float(self))
 		except Exception as e:
 			import traceback
 			if not color:
-				return type(self).__name__ + "(%s) # error \n\t%s" % (bits(self), '\n\t'.join(traceback.format_exc().split('\n')))
+				return "LongDouble(%s) # error \n\t%s" % (bits(self), '\n\t'.join(traceback.format_exc().split('\n')))
 			else:
-				return type(self).__name__ + "(\x1b[31m%s\x1b[32m%s\x1b[34m%s\x1b[33m%s\x1b[0m) # error \n\t%s" % (bits([self.sign]), self.exp_bits, bits([self.isnormal]), self.mant_bits, '\n\t'.join(traceback.format_exc().split('\n')))
+				return "LongDouble(\x1b[31m%s\x1b[32m%s\x1b[34m%s\x1b[33m%s\x1b[0m) # error \n\t%s" % (bits([self.sign]), self.exp_bits, bits([self.isnormal]), self.mant_bits, '\n\t'.join(traceback.format_exc().split('\n')))
 		

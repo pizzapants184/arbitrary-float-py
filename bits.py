@@ -77,8 +77,8 @@ class bits:
 	def __invert__(self):
 		return bits(~self._val)
 	
-	def __lshift__(self, count):
-		pass
+#	def __lshift__(self, count):
+#		pass
 	
 	def __bytes__(self):
 		return self._val.tobytes()

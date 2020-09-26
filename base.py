@@ -2,15 +2,17 @@
 digits: str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/"
 
 def to_positional_base(i: int, b: int) -> str:
+	sign: str
+	ret: str
 	if 1 < b <= len(digits):
 		if i > 0:
-			sign: str = ""
+			sign = ""
 		elif i == 0:
 			return "0"
 		else:
 			i = -i
-			sign: str = "-"
-		ret: str = ""
+			sign = "-"
+		ret = ""
 		while i:
 			ret = digits[i%b] + ret
 			i //= b
@@ -29,7 +31,7 @@ def to_positional_base(i: int, b: int) -> str:
 		if i == 0:
 			return "0"
 		else:
-			ret: str = ""
+			ret = ""
 			while i:
 				d = i % b
 				i //= b
